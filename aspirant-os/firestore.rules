@@ -1,0 +1,178 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: userId (UID)
+    // Fields:
+    //   - uid: string (required)
+    //   - displayName: string (required)
+    //   - email: string (required)
+    //   - photoURL: string (optional)
+    //   - persona: string (optional, enum: Warrior, Scholar, Grinder, Strategist)
+    //   - goalTitle: string (optional)
+    //   - goalDeadline: string (optional, date)
+    //   - streak: number (optional)
+    //   - lastActive: timestamp (optional)
+    //   - cohortId: string (optional)
+    //   - rank: number (optional)
+    //   - totalStudyHours: number (optional)
+    //
+    // Collection: users/{userId}/tasks
+    // Document ID: taskId
+    // Fields:
+    //   - userId: string (required)
+    //   - title: string (required, max 100 chars)
+    //   - completed: bool (required)
+    //   - date: string (required, YYYY-MM-DD)
+    //   - createdAt: timestamp (required)
+    //
+    // Collection: users/{userId}/logs
+    // Document ID: logId (date YYYY-MM-DD)
+    // Fields:
+    //   - userId: string (required)
+    //   - date: string (required, YYYY-MM-DD)
+    //   - studyHours: number (required, positive)
+    //   - tasksCompleted: number (required)
+    //   - tasksTotal: number (required)
+    //
+    // Collection: cohorts
+    // Document ID: cohortId
+    // Fields:
+    //   - name: string (required)
+    //   - goalType: string (required)
+    //   - memberCount: number (required)
+    //
+    // Collection: journey
+    // Document ID: postId
+    // Fields:
+    //   - userId: string (required)
+    //   - content: string (required, max 500 chars)
+    //   - timestamp: timestamp (required)
+    //   - reactions: number (required)
+    //   - persona: string (required)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+          (request.auth.token.email == "shinygoggles123@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidDateString(dateStr) {
+      return dateStr is string && dateStr.matches("^\\d{4}-\\d{2}-\\d{2}$");
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+    function isValidUser(data) {
+      return hasRequiredFields(['uid', 'displayName', 'email']) &&
+             data.uid == request.auth.uid &&
+             data.displayName is string && data.displayName.size() > 0 && data.displayName.size() < 100 &&
+             isValidEmail(data.email) &&
+             (!('persona' in data) || data.persona in ['Warrior', 'Scholar', 'Grinder', 'Strategist']) &&
+             (!('goalTitle' in data) || (data.goalTitle is string && data.goalTitle.size() < 200)) &&
+             (!('streak' in data) || data.streak is number) &&
+             (!('totalStudyHours' in data) || data.totalStudyHours is number);
+    }
+
+    function isValidTask(data) {
+      return hasRequiredFields(['userId', 'title', 'completed', 'date', 'createdAt']) &&
+             data.userId == request.auth.uid &&
+             data.title is string && data.title.size() > 0 && data.title.size() <= 100 &&
+             data.completed is bool &&
+             isValidDateString(data.date);
+    }
+
+    function isValidLog(data) {
+      return hasRequiredFields(['userId', 'date', 'studyHours', 'tasksCompleted', 'tasksTotal']) &&
+             data.userId == request.auth.uid &&
+             isValidDateString(data.date) &&
+             data.studyHours is number && data.studyHours >= 0 && data.studyHours <= 24 &&
+             data.tasksCompleted is number && data.tasksTotal is number;
+    }
+
+    function isValidJourneyPost(data) {
+      return hasRequiredFields(['userId', 'displayName', 'content', 'timestamp', 'reactions', 'persona']) &&
+             data.userId == request.auth.uid &&
+             data.displayName is string &&
+             data.content is string && data.content.size() > 0 && data.content.size() <= 2000 &&
+             data.reactions is number &&
+             data.persona is string &&
+             (!('mediaUrl' in data) || (data.mediaUrl is string && data.mediaUrl.size() < 1000)) &&
+             (!('mediaType' in data) || (data.mediaType in ['image', 'file']));
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isAuthenticated(); // Allow reading profiles for cohorts/leaderboard (but limit fields in app)
+      allow create: if isAuthenticated() && isOwner(userId) && isValidUser(request.resource.data);
+      allow update: if isAuthenticated() && isOwner(userId) && isValidUser(request.resource.data);
+      
+      match /tasks/{taskId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidTask(request.resource.data);
+        allow update: if isOwner(userId) && isValidTask(request.resource.data);
+        allow delete: if isOwner(userId);
+      }
+
+      match /logs/{logId} {
+        allow read: if isOwner(userId) || isAuthenticated(); // Allow reading logs for leaderboard
+        allow create: if isOwner(userId) && isValidLog(request.resource.data);
+        allow update: if isOwner(userId) && isValidLog(request.resource.data);
+      }
+    }
+
+    match /cohorts/{cohortId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isAdmin();
+      
+      match /leaderboard/{memberId} {
+        allow read: if isAuthenticated();
+        allow create, update: if isOwner(memberId) && isValidLog(request.resource.data);
+      }
+    }
+
+    match /journey/{postId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidJourneyPost(request.resource.data);
+      allow update: if isAuthenticated() && (isOwner(resource.data.userId) || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions']));
+      allow delete: if isAuthenticated() && isOwner(resource.data.userId);
+    }
+
+    match /{path=**} {
+      allow read, write: if false;
+    }
+  }
+}

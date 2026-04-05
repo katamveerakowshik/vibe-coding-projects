@@ -1,0 +1,106 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "Stores user identity, persona, and overall progress.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "displayName": { "type": "string" },
+        "email": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "persona": { "type": "string", "enum": ["Warrior", "Scholar", "Grinder", "Strategist"] },
+        "goalTitle": { "type": "string" },
+        "goalDeadline": { "type": "string", "format": "date" },
+        "streak": { "type": "number" },
+        "lastActive": { "type": "string", "format": "date-time" },
+        "cohortId": { "type": "string" },
+        "rank": { "type": "number" },
+        "totalStudyHours": { "type": "number" }
+      },
+      "required": ["uid", "displayName", "email"]
+    },
+    "Task": {
+      "title": "Daily Task",
+      "description": "A specific action for a given day.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "completed": { "type": "boolean" },
+        "date": { "type": "string", "format": "date" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "title", "date"]
+    },
+    "DailyLog": {
+      "title": "Daily Performance Log",
+      "description": "Aggregated stats for a single day.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "studyHours": { "type": "number" },
+        "tasksCompleted": { "type": "number" },
+        "tasksTotal": { "type": "number" }
+      },
+      "required": ["userId", "date"]
+    },
+    "Cohort": {
+      "title": "Aspirant Cohort",
+      "description": "A group of users with similar goals for anonymous competition.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "goalType": { "type": "string" },
+        "memberCount": { "type": "number" }
+      },
+      "required": ["name", "goalType"]
+    },
+    "JourneyPost": {
+      "title": "Journey Milestone",
+      "description": "Anonymous milestone shared by an aspirant.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "displayName": { "type": "string" },
+        "content": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "reactions": { "type": "number" },
+        "persona": { "type": "string" },
+        "mediaUrl": { "type": "string" },
+        "mediaType": { "type": "string", "enum": ["image", "file"] }
+      },
+      "required": ["userId", "content", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Individual user profiles."
+    },
+    "/users/{userId}/tasks/{taskId}": {
+      "schema": "Task",
+      "description": "User-specific daily tasks."
+    },
+    "/users/{userId}/logs/{logId}": {
+      "schema": "DailyLog",
+      "description": "User-specific daily performance logs."
+    },
+    "/cohorts/{cohortId}": {
+      "schema": "Cohort",
+      "description": "Global cohorts for competition."
+    },
+    "/cohorts/{cohortId}/leaderboard/{userId}": {
+      "schema": "DailyLog",
+      "description": "Snapshot of daily logs for cohort leaderboard."
+    },
+    "/journey": {
+      "schema": "JourneyPost",
+      "description": "Global feed of shared milestones."
+    }
+  }
+}

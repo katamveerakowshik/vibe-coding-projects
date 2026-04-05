@@ -1,0 +1,7 @@
+{
+  "name": "Aspirant OS",
+  "description": "The world's first Aspirant Operating System. A goal-achievement and productivity engine for students and professionals.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
