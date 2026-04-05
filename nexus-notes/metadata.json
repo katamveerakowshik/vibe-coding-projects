@@ -1,0 +1,9 @@
+{
+  "name": "Nexus Notes",
+  "description": "An elite, AI-supercharged note-taking experience with holographic interfaces, Veo video generation, and real-time Gemini Live voice interactions.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone",
+    "geolocation"
+  ]
+}
