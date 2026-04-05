@@ -1,0 +1,8 @@
+{
+  "name": "Dot Work ",
+  "description": "An intelligent cognitive operating system with time-travel capabilities, rich text editing, and multimodal AI.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
