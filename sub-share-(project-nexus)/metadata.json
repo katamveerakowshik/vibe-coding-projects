@@ -1,0 +1,8 @@
+{
+  "name": "Sub Share (Project Nexus)",
+  "description": "An intelligent, glassmorphic subscription coordination protocol powered by Gemini. Features autonomous payment verification and semantic discovery.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
