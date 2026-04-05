@@ -1,0 +1,5 @@
+{
+  "name": "Habitify",
+  "description": "The most advanced, visually mind-bending, AI-powered habit tracker and exam preparation system.",
+  "requestFramePermissions": ["microphone", "geolocation"]
+}

@@ -1,0 +1,133 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "Stores user-specific settings, progress, and preferences.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "avatar": { "type": "string" },
+        "exam": { "type": "string" },
+        "examDate": { "type": "string" },
+        "level": { "type": "integer" },
+        "xp": { "type": "integer" },
+        "streak": { "type": "integer" },
+        "lastLogin": { "type": "string" },
+        "dailyHoursGoal": { "type": "integer" },
+        "achievements": { "type": "array", "items": { "type": "object" } },
+        "settings": {
+          "type": "object",
+          "properties": {
+            "apiKey": { "type": "string" },
+            "theme": { "type": "string" },
+            "notifications": { "type": "boolean" }
+          }
+        }
+      },
+      "required": ["name", "avatar", "exam", "level", "xp", "streak"]
+    },
+    "Habit": {
+      "title": "Habit",
+      "description": "A recurring task or habit tracked by the user.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "category": { "type": "string" },
+        "color": { "type": "string" },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "targetDurationHours": { "type": "integer" },
+        "targetDurationMinutes": { "type": "integer" },
+        "frequency": { "type": "string" },
+        "customDays": { "type": "array", "items": { "type": "integer" } },
+        "reminderTime": { "type": "string" },
+        "createdAt": { "type": "integer" },
+        "completions": { "type": "array", "items": { "type": "string" } },
+        "streak": { "type": "integer" },
+        "bestStreak": { "type": "integer" }
+      },
+      "required": ["name", "category", "frequency", "createdAt", "completions", "streak", "bestStreak"]
+    },
+    "Session": {
+      "title": "Study Session",
+      "description": "A planned study session with tasks and analytics.",
+      "type": "object",
+      "properties": {
+        "date": { "type": "string" },
+        "goal": { "type": "string" },
+        "exam": { "type": "string" },
+        "plan": { "type": "array", "items": { "type": "object" } },
+        "notes": { "type": "object" },
+        "analytics": { "type": "object" },
+        "completionRate": { "type": "number" }
+      },
+      "required": ["date", "goal", "exam", "plan", "completionRate"]
+    },
+    "Note": {
+      "title": "Note",
+      "description": "A study note or insight.",
+      "type": "object",
+      "properties": {
+        "topicId": { "type": "string" },
+        "sessionId": { "type": "string" },
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "createdAt": { "type": "integer" },
+        "modifiedAt": { "type": "integer" },
+        "isStarred": { "type": "boolean" }
+      },
+      "required": ["title", "content", "tags", "createdAt", "modifiedAt", "isStarred"]
+    },
+    "Syllabus": {
+      "title": "Syllabus",
+      "description": "The syllabus structure for a specific exam.",
+      "type": "object",
+      "properties": {
+        "exam": { "type": "string" },
+        "nodes": { "type": "array", "items": { "type": "object" } }
+      },
+      "required": ["exam", "nodes"]
+    },
+    "ChatMessage": {
+      "title": "Chat Message",
+      "description": "A message sent in the community chat.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "userAvatar": { "type": "string" },
+        "text": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "imageCaption": { "type": "string" },
+        "createdAt": { "type": "integer" }
+      },
+      "required": ["userId", "userName", "text", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User profile document."
+    },
+    "/users/{userId}/habits/{habitId}": {
+      "schema": "Habit",
+      "description": "Collection of user habits."
+    },
+    "/users/{userId}/sessions/{sessionId}": {
+      "schema": "Session",
+      "description": "Collection of study sessions."
+    },
+    "/users/{userId}/notes/{noteId}": {
+      "schema": "Note",
+      "description": "Collection of user notes."
+    },
+    "/users/{userId}/syllabus/{examId}": {
+      "schema": "Syllabus",
+      "description": "Syllabus data for specific exams."
+    },
+    "/messages/{messageId}": {
+      "schema": "ChatMessage",
+      "description": "Global community chat messages."
+    }
+  }
+}

@@ -1,0 +1,213 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: /users/{userId}
+    // Fields:
+    //   - name: string (required, 1-100 chars)
+    //   - avatar: string (required, 1-10 chars)
+    //   - exam: string (required)
+    //   - examDate: string (optional, ISO date)
+    //   - level: number (required, >= 1)
+    //   - xp: number (required, >= 0)
+    //   - streak: number (required, >= 0)
+    //   - lastLogin: string (optional, ISO date)
+    //   - dailyHoursGoal: number (optional, >= 0)
+    //   - achievements: list (optional, max 100 items)
+    //
+    // Collection: /users/{userId}/habits/{habitId}
+    // Fields:
+    //   - name: string (required, 1-100 chars)
+    //   - category: string (required)
+    //   - frequency: string (required, 'Daily'|'Weekdays'|'Custom')
+    //   - createdAt: number (required, timestamp)
+    //   - completions: list (required, max 1000 items)
+    //   - streak: number (required, >= 0)
+    //   - bestStreak: number (required, >= 0)
+    //
+    // Collection: /users/{userId}/sessions/{sessionId}
+    // Fields:
+    //   - date: string (required, ISO date)
+    //   - goal: string (required, 1-500 chars)
+    //   - exam: string (required)
+    //   - plan: list (required, max 50 items)
+    //   - completionRate: number (required, 0-100)
+    //
+    // Collection: /users/{userId}/notes/{noteId}
+    // Fields:
+    //   - title: string (required, 1-200 chars)
+    //   - content: string (required, 1-10000 chars)
+    //   - tags: list (required, max 20 items)
+    //   - createdAt: number (required)
+    //   - modifiedAt: number (required)
+    //   - isStarred: bool (required)
+    //
+    // Collection: /users/{userId}/syllabus/{examId}
+    // Fields:
+    //   - exam: string (required)
+    //   - nodes: list (required, max 1000 items)
+    //
+    // Collection: /messages/{messageId}
+    // Fields:
+    //   - userId: string (required)
+    //   - userName: string (required)
+    //   - userAvatar: string (optional)
+    //   - text: string (required, max 2000 chars)
+    //   - imageUrl: string (optional)
+    //   - imageCaption: string (optional)
+    //   - createdAt: number (required)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+          (request.auth.token.email == "shinygoggles123@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function isValidString(field, minLen, maxLen) {
+      return request.resource.data[field] is string &&
+        request.resource.data[field].size() >= minLen &&
+        request.resource.data[field].size() <= maxLen;
+    }
+
+    function isValidEmail(email) {
+      return email is string &&
+        email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidDateString(dateStr) {
+      return dateStr is string &&
+        (dateStr.matches("^\\d{4}-\\d{2}-\\d{2}$") || 
+         dateStr.matches("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}.*Z?$"));
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidUserProfile(data) {
+      return hasRequiredFields(['name', 'avatar', 'exam', 'level', 'xp', 'streak']) &&
+        isValidString('name', 1, 100) &&
+        isValidString('avatar', 1, 10) &&
+        data.level is number && data.level >= 1 &&
+        data.xp is number && data.xp >= 0 &&
+        data.streak is number && data.streak >= 0;
+    }
+
+    function isValidHabit(data) {
+      return hasRequiredFields(['name', 'category', 'frequency', 'createdAt', 'completions', 'streak', 'bestStreak']) &&
+        isValidString('name', 1, 100) &&
+        data.createdAt is number &&
+        data.completions is list && data.completions.size() <= 1000 &&
+        data.streak is number && data.streak >= 0 &&
+        data.bestStreak is number && data.bestStreak >= 0;
+    }
+
+    function isValidSession(data) {
+      return hasRequiredFields(['date', 'goal', 'exam', 'plan', 'completionRate']) &&
+        isValidDateString(data.date) &&
+        isValidString('goal', 1, 500) &&
+        data.plan is list && data.plan.size() <= 50 &&
+        data.completionRate is number && data.completionRate >= 0 && data.completionRate <= 100;
+    }
+
+    function isValidNote(data) {
+      return hasRequiredFields(['title', 'content', 'tags', 'createdAt', 'modifiedAt', 'isStarred']) &&
+        isValidString('title', 1, 200) &&
+        isValidString('content', 1, 10000) &&
+        data.tags is list && data.tags.size() <= 20 &&
+        data.createdAt is number &&
+        data.modifiedAt is number &&
+        data.isStarred is bool;
+    }
+
+    function isValidSyllabus(data) {
+      return hasRequiredFields(['exam', 'nodes']) &&
+        data.nodes is list && data.nodes.size() <= 1000;
+    }
+
+    function isValidChatMessage(data) {
+      return hasRequiredFields(['userId', 'userName', 'text', 'createdAt']) &&
+        data.userId == request.auth.uid &&
+        isValidString('userName', 1, 100) &&
+        isValidString('text', 1, 2000) &&
+        data.createdAt is number &&
+        (!('imageUrl' in data) || data.imageUrl is string) &&
+        (!('imageCaption' in data) || data.imageCaption is string);
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId) && isValidUserProfile(request.resource.data);
+      allow update: if isOwner(userId) && isValidUserProfile(request.resource.data);
+      allow delete: if isAdmin();
+
+      match /habits/{habitId} {
+        allow read: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId) && isValidHabit(request.resource.data);
+        allow update: if isOwner(userId) && isValidHabit(request.resource.data);
+        allow delete: if isOwner(userId) || isAdmin();
+      }
+
+      match /sessions/{sessionId} {
+        allow read: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId) && isValidSession(request.resource.data);
+        allow update: if isOwner(userId) && isValidSession(request.resource.data);
+        allow delete: if isOwner(userId) || isAdmin();
+      }
+
+      match /notes/{noteId} {
+        allow read: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId) && isValidNote(request.resource.data);
+        allow update: if isOwner(userId) && isValidNote(request.resource.data);
+        allow delete: if isOwner(userId) || isAdmin();
+      }
+
+      match /syllabus/{examId} {
+        allow read: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId) && isValidSyllabus(request.resource.data);
+        allow update: if isOwner(userId) && isValidSyllabus(request.resource.data);
+        allow delete: if isOwner(userId) || isAdmin();
+      }
+    }
+
+    match /messages/{messageId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidChatMessage(request.resource.data);
+      allow update, delete: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+    }
+
+    // Default deny
+    match /{path=**} {
+      allow read, write: if false;
+    }
+  }
+}
